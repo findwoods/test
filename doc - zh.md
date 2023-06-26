@@ -6,26 +6,6 @@
 
 回应Wellcome Leap关于量子生物学（Q4Bio）的征集要求
 
-首席研究员：
-
-组织：
-
-电话：
-
-电子邮件：
-
-合作首席研究员：
-
-组织：
-
-电话：
-
-电子邮件：
-
-Jens Palsberg `<br>`加州大学洛杉矶分校（UCLA）`<br>`$310-938-8050$`<br>`palsberg@ucla.edu
-
-Sriram Sankararaman `<br>`加州大学洛杉矶分校（UCLA）`<br>`$510-813-9888$`<br>`sriram.sankararaman@gmail.com
-
 总资金申请：$\$1,355,324$ 总计划工作时间：2.5年。
 
 业务联系：
