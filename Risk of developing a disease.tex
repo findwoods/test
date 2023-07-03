@@ -1,0 +1,551 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\graphicspath{ {./} }
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[version=4]{mhchem}
+\usepackage{stmaryrd}
+\usepackage{titlesec}
+\usepackage{geometry}
+\usepackage{relsize}
+\usepackage{indentfirst} 
+\usepackage{hyperref}
+\usepackage{natbib}
+
+
+
+\begin{document}
+\title{Capstone Project Proposal: Risk of developing a disease}
+% \maketitle
+
+\section{Introduction}
+
+\section{Problem Statement}
+
+
+
+\section{Datasets and Inputs}
+
+For the computation of non-negative matrix factorization, we utilize the matrix $ A$.
+
+
+\section{Solution Statement}
+
+Our objective is to perform non-negative matrix factorization on the matrix $A$ itself using Hamiltonian simulation and phase estimation to determine disease progression risks. implementable in quantum circuits.
+
+% \section{Risk of developing a disease}
+
+Our planned primary method is QDCA \cite{du2018quantum}, Quantum divide-and-conquer anchoring, which is derived from the classical DCA algorithm and greatly reduces the runtime required to extract partial representations based on large-scale matrices. Similar to DCA, QDCA can exponentially accelerate the approximate separable NMF problem. It decomposes DCA into s subproblems corresponding to s random projections, consisting of divide and conquer parts. The divide part involves breaking down DCA into s subproblems associated with s random projections, where the i-th subproblem is composed of the i-th random projection and the subsequent process to determine $\bar{A}^{i}$. The elements in each subproblem's $X \beta_{i}$ are encoded as probability amplitudes of $\left|\psi_{i}\right\rangle$. Then, a heuristic post-selection method called "after-selection" is employed, which consumes N copies of $|\psi_{i}\rangle$ to achieve a logarithmic runtime complexity and locate an anchor index in the projection space corresponding to the maximum probability amplitude of $|\psi_{i}\rangle$. In the conquer part, we collect $\left\{\bar{A}^{i}\right\}_{i=1}^{s}$ in classical form and use the sorting algorithm \cite{knuth1997art} to sort the s indices in $\left\{\bar{A}^{i}\right\}_{i=1}^{s}$ in $O(s \log s)$ time. We then select the top r indices as R. With the selected R, we obtain the decomposed matrix $X(R,:)$, which allows us to factorize $X$ as $X=F X(R,:)$, where the basis matrix $X(R,:)$ consists of the r rows of X, and F is the non-negative encoding matrix. These steps primarily consist of four stages.
+
+\subsection{Step 1: Quantum Simulation}
+
+First, we encode the given classical data matrix A and random vectors $\beta_i$ into quantum states.
+
+1.1 We get the data matrix $\tilde{X} \in \mathbb{R}^{n \times m}$
+
+1.2 Embed $\tilde{X}$ into a high-dimensional matrix using an extension matrix, i.e.,
+
+$$
+X:=\left(\begin{array}{cc}
+0 & \tilde{X} \\
+\tilde{X}^{\dagger} & 0
+\end{array}\right) \in \mathbb{C}^{(n+m) \times(n+m)}
+$$
+
+It is a square matrix and conjugate transpose symmetric.
+
+1.3 Construct a unitary time evolution $e^{i X t}$ for simulating time t based on the method proposed by Berry \cite{berry2007efficient} and Harrow \cite{harrow2009quantum}
+
+1.3.1 Modified permutation matrix $S_{X} \in \mathbb{C}^{(n+m)^{2} \times(n+m)^{2}}$:
+
+Efficiently embed X into a large sparse matrix $S_{X} \in \mathbb{C}^{(n+m)^{2} \times(n+m)^{2}}$.
+
+$$
+S_{X}:=\sum_{i, j=1}^{n+m} X_{i, j}|i\rangle\langle j|\otimes| j\rangle\langle i| \in \mathbb{C}^{(n+m)^{2} \times(n+m)^{2}}
+$$
+
+where $X_{i, j}$ is the (i, j)-th element of X.
+
+1.3.2 Unitary time evolution $e^{i X t}$:
+
+For small time intervals $\Delta t$, apply $e^{i S_{X} \Delta t}$ on a larger system $\rho \otimes \sigma$ to simulate the evolution $e^{i X t /(n+m)}$ on the $\sigma$ system, with negligible error. The factor $1 /(n+m)$ is a scaling factor that does not affect the final result. Therefore, what we need to do is to apply $e^{i S_{X} \Delta t}$ on $\rho \otimes \sigma$, where the auxiliary state $\rho=|\overrightarrow{1}\rangle\langle\overrightarrow{1}|$ and $|\overrightarrow{1}\rangle=\frac{1}{\sqrt{n+m}} \sum_{i}|i\rangle$. This achieves the simulation of the unitary time evolution $e^{i X t}$ on a quantum circuit, with a time complexity of $O($poly $\log (n+m))$.
+
+$$
+\begin{aligned}
+& \operatorname{tr}_{\rho} e^{i S_{X} \Delta t} \rho \otimes \sigma e^{-i S_{X} \Delta t} \\
+& =e^{i \frac{X}{(n+m)} \Delta t} \sigma e^{-i \frac{X}{(n+m)} \Delta t}+O\left(\Delta t^{2}\right)
+\end{aligned}
+$$
+
+Therefore, what needs to be constructed is a quantum circuit that simulates $e^{i S_{X} t}$.
+
+1.3.3 Preparation of random vectors $\beta$:
+
+Prepare a normalized vector $\beta$ as a quantum state $|\beta\rangle$ based on the methods proposed by Grover and Rudolph \cite{grover2002creating} and Harrow\cite{lloyd2014quantum}:
+
+$\beta=\left[\alpha_{0}, \cdots, \alpha_{(n+m)-1}\right]^{\top} \in \mathbb{C}^{(n+m)}$
+
+$|\beta\rangle=\sum_{i=1}^{n+m} \alpha_{i}|i\rangle$.
+
+Therefore, the quantum state $|\beta_{i}\rangle$ encoding vector $\beta_{i}$ can be obtained.
+
+\subsection{Step 2: Quantum Linear Operations}
+
+Using the Quantum Principal Component Analysis (QPCA) scheme proposed by Lloyd \cite{lloyd2014quantum} and the subsequent phase estimation algorithm by Shor \cite{shor1999polynomial}, obtain a quantum state $|\psi_{i}\rangle$ that is proportional to the random projection $X\beta_{i}$.
+
+2.1 Perform the eigenvalue decomposition of $X$ as $\sum_{j} \lambda_{j}|u_{j}\rangle\langle u_{j}|$, where $\lambda_{j}$ and $|u_{j}\rangle$ represent the eigenvalues and corresponding eigenvectors, respectively.
+
+2.2 Apply the exponential matrix $e^{i X t_{0} /(n+m)}$ to $|\beta_{i}\rangle$ with a time complexity of $O($poly $\log (n+m))$,
+
+obtaining
+
+$$
+\Lambda_{q}\left(e^{i X t_{0} /(n+m)}\right)|k\rangle|\beta_{i}\rangle=\frac{1}{\sqrt{2^{q}}} \sum_{k}|k\rangle e^{i k X t_{0} /(n+m)}|\beta_{i}\rangle
+$$
+
+where $\Lambda_{q}(\cdot)$ applies $e^{i X t_{0}}$ to $|\beta_{i}\rangle$ q times.
+
+2.3 Eigenvalue register $|k\rangle$, with a time complexity of $O(1 / \epsilon)$.
+
+Using $|k\rangle$ as the eigenvalue register, we can obtain the quantum state
+
+$$
+\frac{1}{\sqrt{\sum_{j}|\beta_{j}|^{2}}} \sum_{\frac{|\lambda_{j}|}{(n+m)} \geq \epsilon} \beta_{j}\left|\frac{\lambda_{j}}{(n+m)}\right\rangle|u_{j}\rangle
+$$
+
+where $\beta_{j}=\langle u_{j}|\beta_{i}\rangle$, with a time complexity of $O(1 / \epsilon)$.
+
+To obtain a quantum form similar to $X\left|\beta_{i}\right\rangle=\sum_{j} \lambda_{j}\left\langle u_{j}|\beta_{i}\right\rangle|u_{j}\rangle=\sum_{j} \lambda_{j}\beta_j|u_{j}\rangle$, corresponding to the result of the random projection $X\beta_{i}$, the eigenvalues are extracted as probability amplitudes of the quantum state.
+
+2.4 Controlled-rotation and non-computation
+
+Introduce an auxiliary qubit to perform controlled-rotation on $|\lambda_{j}\rangle$ and non-computation on the eigenvalue register. The resulting quantum state is proportional to
+
+$$
+\sum_{\frac{\left|\lambda_{j}\right|}{(n+m)} \geq \epsilon} \beta_{j}\left|u_{j}\right\rangle \left(\sqrt{1-\frac{\lambda_{j}^{2}}{C^{2}(n+m)^{2}}}|0\rangle +\frac{\lambda_{j}}{C(n+m)}|1\rangle\right)
+$$
+
+where $C=O\left(1 / \lambda_{\max }\right)$, and $\lambda_{\max }$ is the maximum eigenvalue of $X$.
+
+2.5 Measurement of the last qubit
+
+Measure the last qubit and observe that under the condition of observing 1, the resulting quantum state is proportional to $X\beta_{i}$, i.e.,
+
+$$
+|\psi_{i}\rangle=\frac{1}{\sqrt{\sum_{j} \frac{|\beta_{j} \lambda_{j}|^{2}}{C^{2}(n+m)^{2}}}} \sum_{j} \beta_{j} \frac{\lambda_{j}}{C(n+m)}|u_{j}\rangle .
+$$
+
+2.6 Computational Complexity
+
+The complexity of computing $X\beta_{i}$ for $i=\{1, \ldots, s\}$ is $O($poly $\log (n+m) / \epsilon)$, assuming an expected error of $1 / \epsilon=O($poly $\log (n+m))$. Therefore, the overall complexity of computing $X\beta_{i}$ for $i=\{1, \ldots, s\}$ is $O($poly $\log (n+m))$.
+
+\subsection{Step 3: Heuristic Post-Selection}
+
+The elements of $X\beta_{i}$ are encoded as probability amplitudes of $|\psi_{i}\rangle$. The heuristic post-selection is employed to retain the quantum advantage of reading all probability amplitudes by consuming N copies of $|\psi_{i}\rangle$, achieving a logarithmic runtime complexity. This process allows us to identify an anchor index in the projection space (corresponding to the maximum probability amplitude of $|\psi_{i}\rangle$) by performing measurements. The most frequently occurring index in the N outputs is highly likely to be the anchor index in the projection space. The paper suggests that consuming N=O(poly $\log (n+m))$ copies of $|\psi_{i}\rangle$ is sufficient to determine the anchor index in the projection space $\bar{A}^{i}$ with a high probability.
+
+Given N copies of $|\psi_{i}\rangle$, the process of heuristic after-selection is as follows:
+
+1. Measure each $|\psi_{i}\rangle$ in the computational basis.
+
+2. Record the most frequent index among the N outputs as the anchor index in the projection space.
+
+This completes the divide step of QDCA. Since QDCA only obtains the index with the maximum absolute value, the number of random vectors $\beta_{i}$ should be doubled. Since $s \ll \min (n, m)$, we have $2 s \ll n+m$, and $s$ is still $O(r \log r)$. Therefore, including the runtime for searching the most frequent index, the complexity of this step is $O($poly $\log (n+m))$.
+
+\subsection{Step 4: Classical Conquer Step}
+
+We collect $\left\{\bar{A}^{i}\right\}_{i=1}^{s}$ in classical form. Using the sorting algorithm Knuth \cite{knuth1997art}, we can sort the s indices in $\left\{\bar{A}^{i}\right\}_{i=1}^{s}$ in $O(s \log s)$ time. After sorting, we select the top r indices as R, which are the most frequently occurring indices among all s subproblems. With the selected R, we obtain the decomposed matrix $X(R,:)$, allowing us to factorize $X$ as $X=F X(R,:)$, where the basis matrix $X(R,:)$ consists of the r rows of X, and F is the non-negative encoding matrix. Since $s=O(r \log r)$, the runtime complexity of this step is $O($poly $\log (n+m))$.
+
+
+
+\section{A Simple Test Case}
+
+Assuming that the matrix A we need to decompose is a 4x4 matrix:
+
+$$
+A = \begin{bmatrix}
+0 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 \\
+0 & 0 & 2 & 0 \\
+0 & 0 & 0 & 2 \\
+\end{bmatrix}
+$$
+
+Its eigenvalues are:
+
+$$
+\lambda_0 = 0, \lambda_1 = 1, \lambda_2 = 2, \lambda_3 = 2
+$$
+
+Corresponding eigenvectors are:
+
+$$
+v_0 = \begin{bmatrix}
+1 \\
+0 \\
+0 \\
+0
+\end{bmatrix},
+v_1 = \begin{bmatrix}
+0 \\
+1 \\
+0 \\
+0
+\end{bmatrix},
+v_2 = \begin{bmatrix}
+0 \\
+0 \\
+1 \\
+0
+\end{bmatrix},
+v_3 = \begin{bmatrix}
+0 \\
+0 \\
+0 \\
+1
+\end{bmatrix}
+$$
+
+Let's assume our random vector $\beta_i$ is:
+
+$$
+\beta_{i} =
+\begin{bmatrix}
+\alpha_0 \\
+\alpha_1 \\
+\alpha_2 \\
+\alpha_3
+\end{bmatrix}
+=
+\begin{bmatrix}
+\frac{1}{2} \\
+\frac{1}{2} \\
+\frac{1}{2} \\
+\frac{1}{2}
+\end{bmatrix}
+$$
+
+We can prepare it as a quantum state:
+
+$$
+|\psi_0\rangle=|\beta_{i}\rangle=\alpha_0 |00\rangle +\alpha_1 |01\rangle +\alpha_2 |10\rangle +\alpha_3 |11\rangle\\
+=\frac{1}{2} |00\rangle +\frac{1}{2} |01\rangle +\frac{1}{2}  |10\rangle +\frac{1}{2}  |11\rangle
+$$
+
+The corresponding quantum circuit is as follows:
+
+% \vspace{\baselineskip}
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[max width=0.4\textwidth]{./01.png} 
+% \caption{A polished silicon wafer} 
+\end{center}
+\end{figure}
+% \vspace{\baselineskip}
+
+First, using the oracle $\Lambda_{q}(\cdot)$, for simulation time $t_{0}$, we apply the exponential matrix $e^{i A t_{0} /(n+m)}$ to $|\beta_{i}\rangle$, resulting in
+
+$$
+\Lambda_{q}\left(e^{i A t_{0} /(n+m)}\right)|k\rangle|\beta_{i}\rangle=\frac{1}{\sqrt{2^{q}}} \sum_{k}|k\rangle e^{i k A t_{0} /(n+m)}|\beta_{i}\rangle
+$$
+
+where $q$ is a positive integer, $|k\rangle$ consists of $q$ quantum bits (i.e., $|k\rangle=|0\rangle^{\otimes q}$), and the oracle $\Lambda_{q}(\cdot)$ applies $e^{i A t_{0}}$ to $|\beta_{i}\rangle$ for $k$ times. This equation can be seen as a form of quantum Fourier transform.
+
+By adding a feature value register with q quantum bits and applying the exponential matrix $e^{i A t_{0} /(n+m)}$ constructed unitary gates, we have:
+
+
+
+
+$$
+|\psi_1\rangle=\frac{1}{2} \left[|00\rangle e^{i 0 A t_{0} /4} + |01\rangle e^{i 1 A t_{0} /4} + |10\rangle e^{i 2 A t_{0} /4} + |11\rangle e^{i 3 A t_{0} /4}\right] |\beta_{i}\rangle
+$$
+
+$$
+=\frac{1}{2} \left[|00\rangle + e^{i A t_{0} /4} |01\rangle + e^{i 2 A t_{0} /4} |10\rangle + e^{i 3 A t_{0} /4} |11\rangle\right] |\beta_{i}\rangle
+$$
+
+The quantum circuit is as follows:
+
+% \vspace{\baselineskip}
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[max width=0.8\textwidth]{./02.png} 
+% \caption{A polished silicon wafer} 
+\end{center}
+\end{figure}
+% \vspace{\baselineskip}
+
+Next, by taking $|k\rangle$ as the eigenvalue register, we can obtain the quantum state through quantum operations:
+
+$$
+\frac{1}{\sqrt{\sum_{j}|\beta_{j}|^{2}}} \sum_{\frac{|\lambda_{j}|}{(n+m)} \geq \epsilon} \beta_{j}\left|\frac{\lambda_{j}}{(n+m)}\right\rangle|u_{j}\rangle
+$$
+
+where $\beta_{j}=\langle u_{j}|\beta_{i}\rangle$, and the required time is $O(1 / \epsilon)$. In order to obtain a quantum form similar to $X\left|\beta_{i}\right\rangle=\sum_{j} \lambda_{j}\left\langle u_{j}|\beta_{i}\right\rangle|u_{j}\rangle$, corresponding to the result of the random projection $X\beta_{i}$, the eigenvalues will be extracted as the probability amplitudes of the quantum state.
+
+$\beta_j = \langle u_{j}|\beta_i\rangle$ can be computed as:
+
+$$
+\beta_0 = \langle u_{0}|\beta_i\rangle = \begin{bmatrix}
+1 & 0 & 0 & 0
+\end{bmatrix}
+\begin{bmatrix}
+\alpha_0 \\
+\alpha_1 \\
+\alpha_2 \\
+\alpha_3
+\end{bmatrix} = \alpha_0=\frac{1}{2}
+$$
+
+$$
+\beta_1 = \langle u_{1}|\beta_i\rangle = \begin{bmatrix}
+0 & 1 & 0 & 0
+\end{bmatrix}
+\begin{bmatrix}
+\alpha_0 \\
+\alpha_1 \\
+\alpha_2 \\
+\alpha_3
+\end{bmatrix} = \alpha_1=\frac{1}{2}
+$$
+
+$$
+\beta_2 = \langle u_{2}|\beta_i\rangle = \begin{bmatrix}
+0 & 0 & 1 & 0
+\end{bmatrix}
+\begin{bmatrix}
+\alpha_0 \\
+\alpha_1 \\
+\alpha_2 \\
+\alpha_3
+\end{bmatrix} = \alpha_2=\frac{1}{2}
+$$
+
+$$
+\beta_3 = \langle u_{3}|\beta_i\rangle = \begin{bmatrix}
+0 & 0 & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+\alpha_0 \\
+\alpha_1 \\
+\alpha_2 \\
+\alpha_3
+\end{bmatrix} = \alpha_3=\frac{1}{2}
+$$
+
+Let's assume $\epsilon=0.1$, then we can obtain:
+
+$$
+|\psi_{2}\rangle
+= \frac{1}{\sqrt{\alpha_1^2 + \alpha_2^2 + \alpha_3^2}} \left(\alpha_1\left|\frac{1}{4}\right\rangle e^{i A t_{0} 1/4} |u_{1}\rangle + \alpha_2\left|\frac{2}{4}\right\rangle e^{i A t_{0} 2/4} |u_{2}\rangle +  \alpha_3\left|\frac{2}{4}\right\rangle e^{i A t_{0} 3/4} |u_{3}\rangle\right)
+$$
+$$
+= \frac{2}{\sqrt{3}}\left(\frac{1}{2}\left|\frac{1}{4}\right\rangle e^{i A t_{0} 1/4} |u_{1}\rangle + \frac{1}{2}\left|\frac{2}{4}\right\rangle e^{i A t_{0} 2/4} |u_{2}\rangle +  \frac{1}{2}\left|\frac{2}{4}\right\rangle e^{i A t_{0} 3/4} |u_{3}\rangle\right)
+$$
+
+% \vspace{\baselineskip}
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[max width=0.8\textwidth]{./03.png} 
+% \caption{A polished silicon wafer} 
+\end{center}
+\end{figure}
+% \vspace{\baselineskip}
+
+Then we introduce an ancillary qubit, rotate $|\lambda_{j}\rangle$ conditionally, and uncompute the eigenvalue register. The resulting quantum state is proportional to:
+
+$$
+\begin{aligned}
+\sum_{\frac{|\lambda_{j}|}{(n+m)} \geq \epsilon}
+\beta_{j}|u_{j}\rangle & \left(\sqrt{1-\frac{\lambda_{j}^{2}}{C^{2}(n+m)^{2}}}|0\rangle\right.  \left.+\frac{\lambda_{j}}{C(n+m)}|1\rangle\right)
+\end{aligned}
+$$
+
+where $C=O\left(1 / \lambda_{\max }\right)$, and $\lambda_{\max }$ is the maximum eigenvalue of $X$.
+
+$\lambda_{\max }$=2, therefore we set $C=1/2$. By applying the rotation and uncomputing operations, we obtain:
+
+
+$$
+\begin{aligned}
+|\psi_{3}\rangle
+&= \frac{2}{\sqrt{3}}\left(\frac{1}{2}|u_{1}\rangle\left(\sqrt{1-\frac{1^2}{(1/2)^2(4)^2}}|0\rangle + \frac{1}{(1/2)(4)}|1\rangle\right) \\
+&+ \frac{1}{2}|u_{2}\rangle\left(\sqrt{1-\frac{2^2}{(1/2)^2(4)^2}}|0\rangle \right. \quad + \left. \frac{2}{(1/2)(4)}|1\rangle\right) \\
+&+ \frac{1}{2}|u_{3}\rangle\left(\sqrt{1-\frac{2^2}{(1/2)^2(4)^2}}|0\rangle \right. \quad + \left. \frac{2}{(1/2)(4)}|1\rangle\right)\right))
+\end{aligned}
+$$
+
+
+
+$$
+=\frac{2}{\sqrt{3}}\left(\frac{1}{2}|u_{1}\rangle\left(\frac{\sqrt{3}}{2}|0\rangle + \frac{1}{2}|1\rangle\right) + \frac{1}{2}|u_{2}\rangle|1\rangle+ \frac{1}{2}|u_{3}\rangle|1\rangle\right)
+$$
+
+% \vspace{\baselineskip}
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[max width=0.8\textwidth]{./04.png} 
+% \caption{A polished silicon wafer} 
+\end{center}
+\end{figure}
+% \vspace{\baselineskip}
+
+Upon measuring the last qubit, the ancillary qubit, and observing the outcome 1, we can see that the final output quantum state is proportional to $X\beta_{i}$, which is given by:
+
+$$
+|\psi_{i}\rangle=\frac{1}{\sqrt{\sum_{j} \frac{|\beta_{j} \lambda_{j}|^{2}}{C^{2}(n+m)^{2}}}} \sum_{j} \beta_{j} \frac{\lambda_{j}}{C(n+m)}|u_{j}\rangle .
+$$
+
+Since:
+
+$$
+\sqrt{\sum_{j} \frac{|\beta_{j} \lambda_{j}|^{2}}{C^{2}(n+m)^{2}}} = \sqrt{\frac{|\frac{1}{2} \cdot 1|^{2}}{4^2} + \frac{|\frac{1}{2} \cdot 2|^{2}}{4^2} + \frac{|\frac{1}{2} \cdot 2|^{2}}{4^2}} = \sqrt{\frac{1}{16} + \frac{4}{16} + \frac{4}{16}} = \sqrt{\frac{9}{16}} = \frac{3}{4}
+$$
+
+we have:
+
+$$
+|\psi_{4}\rangle=\frac{4}{3}\left(\frac{1}{2} \cdot \frac{1}{4}\cdot \frac{1}{2}|u_{1}\rangle + \frac{1}{2} \cdot \frac{2}{4}\cdot \frac{1}{2}|u_{2}\rangle + \frac{1}{2} \cdot \frac{2}{4}\cdot \frac{1}{2}|u_{3}\rangle\right) \\
+
+= \frac{1}{12}|u_{1}\rangle + \frac{1}{6}|u_{2}\rangle + \frac{1}{6}|u_{3}\rangle
+$$
+
+The quantum circuit is shown as follows:
+
+% \vspace{\baselineskip}
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[max width=0.8\textwidth]{./05.png} 
+% \caption{A polished silicon wafer} 
+\end{center}
+\end{figure}
+% \vspace{\baselineskip}
+    
+This is the quantum state obtained when measuring the ancillary qubit and observing the outcome 1. It corresponds to:
+
+$$
+\frac{1}{12}v_1 + \frac{1}{6}v_2 + \frac{1}{6}v_3
+$$
+
+$$
+= \frac{1}{12}\begin{bmatrix}
+0 \\
+1 \\
+0 \\
+0
+\end{bmatrix} + \frac{1}{6}\begin{bmatrix}
+0 \\
+0 \\
+1 \\
+0
+\end{bmatrix} + \frac{1}{6}\begin{bmatrix}
+0 \\
+0 \\
+0 \\
+1
+\end{bmatrix}
+$$
+
+$$
+= \begin{bmatrix}
+0 \\
+\frac{1}{12} \\
+\frac{1}{6} \\
+\frac{1}{6}
+\end{bmatrix}
+$$
+
+We can see that it is proportional to:
+
+$$
+X\beta_{i}=\begin{bmatrix}
+0 \\
+\frac{1}{2} \\
+1 \\
+1
+\end{bmatrix}
+$$
+
+By consuming multiple copies of such $|\psi_{i}\rangle$, we can record the most frequently occurring index among these outputs as the index corresponding to the largest component.
+
+Using a heuristic post-selection approach, we collect $\left\{\bar{A}^{i}\right\}_{i=1}^{s}$ in classical form, and then select the top $r$ indices as $R$, which are the indices with the highest frequency among all $s$ subproblems. Thus, we obtain the decomposed matrix $X(R,:)$ as the basis matrix for the non-negative matrix decomposition of $X$, completing the decomposition process.
+
+
+
+
+
+
+
+\section{Expected Outputs}
+
+We will ultimately obtain a set of indices for the anchor points, and by using this index set, we can construct the basis matrix for the non-negative matrix decomposition of X, completing the decomposition process.
+
+\section{Time Scheduling}
+We plan to complete this project schedule within eight weeks and conduct a project demonstration in the ninth week. The following is the proposed timeline:
+
+\textbf{Week 1: Project Kickoff and Literature Review}
+\begin{itemize}
+    \item Define project objectives and scope.
+    \item Conduct a literature review and research on quantum computing, non-negative matrix factorization, and related concepts.
+\end{itemize}
+
+\textbf{Week 2: Data Collection and Processing}
+\begin{itemize}
+    \item Collect and process the dataset to be used.
+    \item Determine the matrix A for computation.
+    \item Configure the required quantum computing environment.
+\end{itemize}
+
+\textbf{Week 3: Step 1: Quantum Simulation - Part 1}
+\begin{itemize}
+    \item Implement Section 1.1 and 1.2, quantum encode the given classical data matrix A.
+    \item Design and test a program to embed A into a higher-dimensional matrix.
+\end{itemize}
+
+\textbf{Week 4: Step 1: Quantum Simulation - Part 2}
+\begin{itemize}
+    \item Implement Section 1.3, construct a quantum circuit for simulating time evolution.
+    \item Test and validate the accuracy of the quantum simulation.
+\end{itemize}
+
+\textbf{Week 5: Step 2: Quantum Linear Operations - Part 1}
+\begin{itemize}
+    \item Implement Section 2.1 and 2.2, use Quantum Principal Component Analysis (QPCA) to acquire quantum states.
+    \item Begin work on eigenvalue decomposition and random projections.
+\end{itemize}
+
+\textbf{Week 6: Step 2: Quantum Linear Operations - Part 2}
+\begin{itemize}
+    \item Complete the implementation of Sections 2.3, 2.4, 2.5.
+    \item Validate the results of quantum linear operations.
+\end{itemize}
+
+\textbf{Week 7: Step 3: Heuristic Post-Selection}
+\begin{itemize}
+    \item Implement and test the heuristic post-selection algorithm.
+    \item Analyze and optimize the post-selection process.
+\end{itemize}
+
+\textbf{Week 8: Step 4: Classical Conquer Step and Result Analysis, Report Writing}
+\begin{itemize}
+    \item Implement the classical conquer step.
+    \item Validate and adjust the results.
+    \item Analyze and interpret the project outcomes.
+    \item Write the project report.
+\end{itemize}
+
+\textbf{Week 9: Project Presentation}
+\begin{itemize}
+    \item Prepare and conduct the project presentation.
+    \item Evaluate the success of the project and summarize the lessons learned and knowledge gained.
+\end{itemize}
+
+
+\bibliographystyle{IEEEtran}  
+\bibliography{references} 
+
+
+\end{document}
